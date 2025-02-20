@@ -195,24 +195,13 @@ struct SAnimContext
     float startTime;        //!< The start time of this playing sequence
 };
 
-/** Parameters for cut-scene cameras
-*/
-struct SCameraParams
-{
-    SCameraParams();
-    AZ::EntityId cameraEntityId;
-    float fov;
-    float nearZ;
-    bool justActivated;
-};
-
 //! Interface for movie-system implemented by user for advanced function-support
 struct IMovieUser
 {
     // <interfuscator:shuffle>
     virtual ~IMovieUser(){}
     //! Called when movie system requests a camera-change.
-    virtual void SetActiveCamera(const SCameraParams& Params) = 0;
+    virtual void SetActiveCamera(const AZ::EntityId& cameraEntityId) = 0;
     //! Called when movie system enters into cut-scene mode.
     virtual void BeginCutScene(IAnimSequence* pSeq, unsigned long dwFlags, bool bResetFX) = 0;
     //! Called when movie system exits from cut-scene mode.
@@ -318,7 +307,7 @@ struct IAnimTrack
     virtual void SetNumKeys(int numKeys) = 0;
 
     //! Remove specified key.
-    virtual void RemoveKey(int num) = 0;
+    virtual void RemoveKey(int index) = 0;
 
     //! Get key at specified location.
     //! @param key Must be valid pointer to compatible key structure, to be filled with specified key location.
@@ -372,9 +361,10 @@ struct IAnimTrack
     virtual int CopyKey(IAnimTrack* pFromTrack, int nFromKey) = 0;
 
     //! Get info about specified key.
-    //! @param Short human readable text description of this key.
-    //! @param duration of this key in seconds.
-    virtual void GetKeyInfo(int key, const char*& description, float& duration) = 0;
+    //! @param index The index specifying the this key.
+    //! @param description The short human readable text description of this key.
+    //! @param duration The duration of this key in seconds.
+    virtual void GetKeyInfo(int index, const char*& description, float& duration) = 0;
 
     //////////////////////////////////////////////////////////////////////////
     // Get track value at specified time.
@@ -382,56 +372,22 @@ struct IAnimTrack
     // Applies a scale multiplier set in SetMultiplier(), if requested
     //////////////////////////////////////////////////////////////////////////
     virtual void GetValue(float time, float& value, bool applyMultiplier=false) = 0;
-    /**
-     * O3DE_DEPRECATION_NOTICE(GHI-9133)
-     * use equivalent GetValue that accepts AZ::Vector3
-     **/
-    virtual void GetValue(float time, Vec3& value, bool applyMultiplier = false) = 0;
-    /**
-     * O3DE_DEPRECATION_NOTICE(GHI-9133)
-     * use equivalent GetValue that accepts AZ::Vector4
-     **/
-    virtual void GetValue(float time, Vec4& value, bool applyMultiplier = false) = 0;
-        /**
-     * O3DE_DEPRECATION_NOTICE(GHI-9133)
-     * use equivalent GetValue that accepts AZ::Quaternion
-     **/
-    virtual void GetValue(float time, Quat& value) = 0;
+    virtual void GetValue(float time, AZ::Vector3& value, bool applyMultiplier = false) = 0;
+    virtual void GetValue(float time, AZ::Vector4& value, bool applyMultiplier = false) = 0;
+    virtual void GetValue(float time, AZ::Quaternion& value) = 0;
     virtual void GetValue(float time, bool& value) = 0;
     virtual void GetValue(float time, Maestro::AssetBlends<AZ::Data::AssetData>& value) = 0;
-
-    // support for AZ:: vector types - re-route to legacy types
-    void GetValue(float time, AZ::Vector3& value, bool applyMultiplier = false);
-    void GetValue(float time, AZ::Vector4& value, bool applyMultiplier = false);
-    void GetValue(float time, AZ::Quaternion& value);
 
     //////////////////////////////////////////////////////////////////////////
     // Set track value at specified time.
     // Adds new keys if required.
     //////////////////////////////////////////////////////////////////////////
     virtual void SetValue(float time, const float& value, bool bDefault = false, bool applyMultiplier = false) = 0;
-    /**
-     * O3DE_DEPRECATION_NOTICE(GHI-9133)
-     * use equivalent SetValue that accepts AZ::Vector3
-     **/
-    virtual void SetValue(float time, const Vec3& value, bool bDefault = false, bool applyMultiplier = false) = 0;
-    /**
-     * O3DE_DEPRECATION_NOTICE(GHI-9133)
-     * use equivalent SetValue that accepts AZ::Vector4
-     **/
-    virtual void SetValue(float time, const Vec4& value, bool bDefault = false, bool applyMultiplier = false) = 0;
-    /**
-     * O3DE_DEPRECATION_NOTICE(GHI-9133)
-     * use equivalent SetValue that accepts AZ::Quaternion
-     **/
-    virtual void SetValue(float time, const Quat& value, bool bDefault = false) = 0;
+    virtual void SetValue(float time, const AZ::Vector3& value, bool bDefault = false, bool applyMultiplier = false) = 0;
+    virtual void SetValue(float time, const AZ::Vector4& value, bool bDefault = false, bool applyMultiplier = false) = 0;
+    virtual void SetValue(float time, const AZ::Quaternion& value, bool bDefault = false) = 0;
     virtual void SetValue(float time, const bool& value, bool bDefault = false) = 0;
     virtual void SetValue(float time, const Maestro::AssetBlends<AZ::Data::AssetData>& value, bool bDefault = false) = 0;
-
-    // support for AZ:: vector types - re-route to legacy types
-    void SetValue(float time, AZ::Vector4& value, bool bDefault = false, bool applyMultiplier = false);
-    void SetValue(float time, AZ::Vector3& value, bool bDefault = false, bool applyMultiplier = false);
-    void SetValue(float time, AZ::Quaternion& value, bool bDefault = false);
 
     // Only for position tracks, offset all track keys by this amount.
     virtual void OffsetKeyPosition(const AZ::Vector3& value) = 0;
@@ -606,38 +562,14 @@ public:
     // Set float/vec3/vec4 parameter at given time.
     // @return true if parameter set, false if this parameter not exist in node.
     virtual bool SetParamValue(float time, CAnimParamType param, float value) = 0;
-    virtual bool SetParamValue(float time, CAnimParamType param, const Vec3& value) = 0;
-    virtual bool SetParamValue(float time, CAnimParamType param, const Vec4& value) = 0;
-
-    /**
-     * O3DE_DEPRECATION_NOTICE(GHI-9326)
-     * use equivalent SetParamValue that accepts AZ::Vector3
-     **/
-    bool SetParamValue(float time, CAnimParamType param, const AZ::Vector3& value);
-
-    /**
-     * O3DE_DEPRECATION_NOTICE(GHI-9326)
-     * use equivalent SetParamValue that accepts AZ::Vector4
-     **/
-    bool SetParamValue(float time, CAnimParamType param, const AZ::Vector4& value);
+    virtual bool SetParamValue(float time, CAnimParamType param, const AZ::Vector3& value) = 0;
+    virtual bool SetParamValue(float time, CAnimParamType param, const AZ::Vector4& value) = 0;
 
     // Get float/vec3/vec4 parameter at given time.
     // @return true if parameter exist, false if this parameter not exist in node.
     virtual bool GetParamValue(float time, CAnimParamType param, float& value) = 0;
-    virtual bool GetParamValue(float time, CAnimParamType param, Vec3& value) = 0;
-    virtual bool GetParamValue(float time, CAnimParamType param, Vec4& value) = 0;
-
-    /**
-     * O3DE_DEPRECATION_NOTICE(GHI-9326)
-     * use equivalent GetParamValue that accepts AZ::Vector4
-     **/
-    bool GetParamValue(float time, CAnimParamType param, AZ::Vector3& value);
-
-    /**
-     * O3DE_DEPRECATION_NOTICE(GHI-9326)
-     * use equivalent GetParamValue that accepts AZ::Vector4
-     **/
-    bool GetParamValue(float time, CAnimParamType param, AZ::Vector4& value);
+    virtual bool GetParamValue(float time, CAnimParamType param, AZ::Vector3& value) = 0;
+    virtual bool GetParamValue(float time, CAnimParamType param, AZ::Vector4& value) = 0;
 
     //! Evaluate animation node while not playing animation.
     virtual void StillUpdate() = 0;
@@ -884,7 +816,15 @@ struct IAnimSequence
         eSeqFlags_DisplayAsFramesOrSeconds = BIT(18), //!< Display Start/End time as frames or seconds
     };
 
-    virtual ~IAnimSequence() {};
+    IAnimSequence()
+    {
+        AZ_Trace("IAnimSequence", "IAnimSequence");
+    }
+
+    virtual ~IAnimSequence()
+    {
+        AZ_Trace("IAnimSequence", "~IAnimSequence");
+    }
 
     // for intrusive_ptr support
     virtual void add_ref() = 0;
@@ -1273,14 +1213,14 @@ struct IMovieSystem
 
     virtual IMovieCallback* GetCallback() = 0;
 
-    virtual const SCameraParams& GetCameraParams() const = 0;
-    virtual void SetCameraParams(const SCameraParams& Params) = 0;
+    virtual AZ::EntityId GetActiveCamera() const = 0;
+    virtual void SetActiveCamera(const AZ::EntityId& entityId) = 0;
     virtual void SendGlobalEvent(const char* pszEvent) = 0;
 
     // Gets the float time value for a sequence that is already playing
     virtual float GetPlayingTime(IAnimSequence* pSeq) = 0;
     virtual float GetPlayingSpeed(IAnimSequence* pSeq) = 0;
-    // Sets the time progression of an already playing cutscene.
+    // Sets the time progression of an already playing cut-scene.
     // If IAnimSequence:NO_SEEK flag is set on pSeq, this call is ignored.
     virtual bool SetPlayingTime(IAnimSequence* pSeq, float fTime) = 0;
     virtual bool SetPlayingSpeed(IAnimSequence* pSeq, float fSpeed) = 0;
@@ -1333,3 +1273,6 @@ struct IMovieSystem
 
     // </interfuscator:shuffle>
 };
+
+
+

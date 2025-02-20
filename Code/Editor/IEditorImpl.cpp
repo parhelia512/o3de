@@ -40,7 +40,6 @@
 
 // Editor
 #include "CryEdit.h"
-#include "Plugin.h"
 #include "PluginManager.h"
 #include "ViewManager.h"
 #include "DisplaySettings.h"
@@ -56,8 +55,6 @@
 #include "MainStatusBar.h"
 
 #include "Util/FileUtil_impl.h"
-#include "Util/ImageUtil_impl.h"
-#include "LogFileImpl.h"
 
 #include "Editor/AssetDatabase/AssetDatabaseLocationListener.h"
 #include "Editor/AzAssetBrowser/AzAssetBrowserRequestHandler.h"
@@ -80,18 +77,13 @@ static CCryEditDoc * theDocument;
 const char* CEditorImpl::m_crashLogFileName = "SessionStatus/editor_statuses.json";
 
 CEditorImpl::CEditorImpl()
-    : m_operationMode(eOperationModeNone)
-    , m_pSystem(nullptr)
+    : m_pSystem(nullptr)
     , m_pFileUtil(nullptr)
-    , m_pClassFactory(nullptr)
     , m_pCommandManager(nullptr)
     , m_pPluginManager(nullptr)
     , m_pViewManager(nullptr)
     , m_pUndoManager(nullptr)
-    , m_marker(0, 0, 0)
     , m_selectedAxis(AXIS_TERRAIN)
-    , m_refCoordsSys(COORDS_LOCAL)
-    , m_bAxisVectorLock(false)
     , m_bUpdates(true)
     , m_bTerrainAxisIgnoreObjects(false)
     , m_pDisplaySettings(nullptr)
@@ -111,21 +103,17 @@ CEditorImpl::CEditorImpl()
     , m_bInitialized(false)
     , m_bExiting(false)
     , m_QtApplication(static_cast<Editor::EditorQtApplication*>(qApp))
-    , m_pImageUtil(nullptr)
-    , m_pLogFile(nullptr)
 {
     // note that this is a call into EditorCore.dll, which stores the g_pEditorPointer for all shared modules that share EditorCore.dll
     // this means that they don't need to do SetIEditor(...) themselves and its available immediately
     SetIEditor(this);
 
     m_pFileUtil = new CFileUtil_impl();
-    m_pLogFile = new CLogFileImpl();
     m_pLevelIndependentFileMan = new CLevelIndependentFileMan;
     SetPrimaryCDFolder();
     gSettings.Load();
 
     m_pErrorReport = new CErrorReport;
-    m_pClassFactory = CClassFactory::Instance();
     m_pCommandManager = new CEditorCommandManager;
     m_pEditorFileMonitor.reset(new CEditorFileMonitor());
     m_pDisplaySettings = new CDisplaySettings;
@@ -136,11 +124,9 @@ CEditorImpl::CEditorImpl()
     m_pUndoManager = new CUndoManager;
     m_pToolBoxManager = new CToolBoxManager;
     m_pSequenceManager = new CTrackViewSequenceManager;
+
     m_pAnimationContext = new CAnimationContext;
 
-    m_pImageUtil = new CImageUtil_impl();
-    m_selectedRegion.min = Vec3(0, 0, 0);
-    m_selectedRegion.max = Vec3(0, 0, 0);
     DetectVersion();
     RegisterTools();
 
@@ -267,7 +253,6 @@ CEditorImpl::~CEditorImpl()
     SAFE_DELETE(m_pDisplaySettings)
     SAFE_DELETE(m_pToolBoxManager)
     SAFE_DELETE(m_pCommandManager)
-    SAFE_DELETE(m_pClassFactory)
     SAFE_DELETE(m_pLasLoadedLevelErrorReport)
 
     SAFE_DELETE(m_pSettingsManager);
@@ -284,8 +269,6 @@ CEditorImpl::~CEditorImpl()
     SAFE_DELETE(m_pErrorReport);
 
     SAFE_DELETE(m_pFileUtil); // Vladimir@Conffx
-    SAFE_DELETE(m_pImageUtil); // Vladimir@Conffx
-    SAFE_DELETE(m_pLogFile); // Vladimir@Conffx
 }
 
 void CEditorImpl::SetPrimaryCDFolder()
@@ -351,10 +334,6 @@ ISystem* CEditorImpl::GetSystem()
     return m_pSystem;
 }
 
-IEditorClassFactory* CEditorImpl::GetClassFactory()
-{
-    return m_pClassFactory;
-}
 
 CCryEditDoc* CEditorImpl::GetDocument() const
 {
@@ -490,17 +469,6 @@ IMainStatusBar* CEditorImpl::GetMainStatusBar()
     return MainWindow::instance()->StatusBar();
 }
 
-void CEditorImpl::SetOperationMode(EOperationMode mode)
-{
-    m_operationMode = mode;
-    gSettings.operationMode = mode;
-}
-
-EOperationMode CEditorImpl::GetOperationMode()
-{
-    return m_operationMode;
-}
-
 void CEditorImpl::SetAxisConstraints(AxisConstrains axisFlags)
 {
     m_selectedAxis = axisFlags;
@@ -525,29 +493,6 @@ bool CEditorImpl::IsTerrainAxisIgnoreObjects()
 {
     return m_bTerrainAxisIgnoreObjects;
 }
-
-void CEditorImpl::SetReferenceCoordSys(RefCoordSys refCoords)
-{
-    m_refCoordsSys = refCoords;
-
-    // Update all views.
-    UpdateViews(eUpdateObjects, nullptr);
-
-    // Update the construction plane infos.
-    CViewport* pViewport = GetActiveView();
-    if (pViewport)
-    {
-        pViewport->MakeConstructionPlane(GetIEditor()->GetAxisConstrains());
-    }
-
-    Notify(eNotify_OnRefCoordSysChange);
-}
-
-RefCoordSys CEditorImpl::GetReferenceCoordSys()
-{
-    return m_refCoordsSys;
-}
-
 
 CSettingsManager* CEditorImpl::GetSettingsManager()
 {
@@ -639,16 +584,6 @@ const QColor& CEditorImpl::GetColorByName(const QString& name)
     return m_QtApplication->GetColorByName(name);
 }
 
-void CEditorImpl::SetSelectedRegion(const AABB& box)
-{
-    m_selectedRegion = box;
-}
-
-void CEditorImpl::GetSelectedRegion(AABB& box)
-{
-    box = m_selectedRegion;
-}
-
 const QtViewPane* CEditorImpl::OpenView(QString sViewClassName, bool reuseOpened)
 {
     auto openMode = reuseOpened ? QtViewPane::OpenMode::None : QtViewPane::OpenMode::MultiplePanes;
@@ -670,20 +605,6 @@ bool CEditorImpl::SetViewFocus(const char* sViewClassName)
         return true;
     }
     return false;
-}
-
-bool CEditorImpl::CloseView(const char* sViewClassName)
-{
-    return QtViewPaneManager::instance()->ClosePane(sViewClassName);
-}
-
-void CEditorImpl::CloseView(const GUID& classId)
-{
-    IClassDesc* found = GetClassFactory()->FindClass(classId);
-    if (found)
-    {
-        CloseView(found->ClassName().toUtf8().data());
-    }
 }
 
 bool CEditorImpl::SelectColor(QColor& color, QWidget* parent)
@@ -1114,24 +1035,6 @@ ITrackViewSequenceManager* CEditorImpl::GetSequenceManagerInterface()
     return GetSequenceManager();
 }
 
-void CEditorImpl::RegisterDocListener(IDocListener* listener)
-{
-    CCryEditDoc* doc = GetDocument();
-    if (doc)
-    {
-        doc->RegisterListener(listener);
-    }
-}
-
-void CEditorImpl::UnregisterDocListener(IDocListener* listener)
-{
-    CCryEditDoc* doc = GetDocument();
-    if (doc)
-    {
-        doc->UnregisterListener(listener);
-    }
-}
-
 void CEditorImpl::StartLevelErrorReportRecording()
 {
     IErrorReport* errorReport = GetErrorReport();
@@ -1263,17 +1166,3 @@ SEditorSettings* CEditorImpl::GetEditorSettings()
     return &gSettings;
 }
 
-IImageUtil* CEditorImpl::GetImageUtil()
-{
-    return m_pImageUtil;
-}
-
-QMimeData* CEditorImpl::CreateQMimeData() const
-{
-    return new QMimeData();
-}
-
-void CEditorImpl::DestroyQMimeData(QMimeData* data) const
-{
-    delete data;
-}

@@ -228,8 +228,6 @@ set(FILES
     res/water.bmp
     res/work_in_progress_icon.ico
     res/MannFileManagerImageList.bmp
-    Plugin.cpp
-    Plugin.h
     PluginManager.cpp
     PluginManager.h
     IEditor.h
@@ -262,8 +260,6 @@ set(FILES
     Include/HitContext.h
     Include/ICommandManager.h
     Include/IDisplayViewport.h
-    Include/IEditorClassFactory.h
-    Include/ILogFile.h
     Include/IKeyTimeSet.h
     Include/IPlugin.h
     Include/IPreferencesPage.h
@@ -400,8 +396,6 @@ set(FILES
     Util/GeometryUtil.h
     LevelIndependentFileMan.cpp
     LevelIndependentFileMan.h
-    LogFileImpl.cpp
-    LogFileImpl.h
     PythonEditorFuncs.cpp
     PythonEditorFuncs.h
     QtUI/WaitCursor.h
@@ -409,8 +403,6 @@ set(FILES
     Settings.cpp
     SettingsManager.cpp
     SettingsManagerDialog.cpp
-    PreferencesStdPages.h
-    PreferencesStdPages.cpp
     EditorPreferencesPageGeneral.h
     EditorPreferencesPageGeneral.cpp
     EditorPreferencesPageFiles.h
@@ -528,6 +520,8 @@ set(FILES
     TrackView/TrackViewSequence.h
     TrackView/TrackViewNodeFactories.h
     TrackView/TrackViewEventNode.h
+    TrackView/TrackViewMessageBox.cpp
+    TrackView/TrackViewMessageBox.h
     Util/AffineParts.h
     Util/AutoLogTime.cpp
     Util/AutoLogTime.h
@@ -566,8 +560,6 @@ set(FILES
     WaitProgress.h
     Util/FileUtil_impl.h
     Util/FileUtil_impl.cpp
-    Util/ImageUtil_impl.h
-    Util/ImageUtil_impl.cpp
     Util/ColumnSortProxyModel.h
     Util/ColumnSortProxyModel.cpp
     Util/AbstractGroupProxyModel.h
@@ -588,8 +580,6 @@ set(FILES
     Util/3DConnexionDriver.h
     Util/FileChangeMonitor.cpp
     Util/FileChangeMonitor.h
-    Util/ImageUtil.cpp
-    Util/ImageUtil.h
     Util/ImageGif.cpp
     Util/ImageGif.h
     Util/ImageTIF.cpp

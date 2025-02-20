@@ -49,7 +49,7 @@ void ApplyDirectionalLights(Surface surface, inout LightingData lightingData, fl
             litRatio = DirectionalLightShadow::GetVisibility(shadowIndex, real3(surface.position), surface.vertexNormal, screenUv);
         }
 #else 
-        litRatio = DirectionalLightShadow::GetVisibility(shadowIndex, real3(surface.position), surface.vertexNormal, screenUv);
+        litRatio = DirectionalLightShadow::GetVisibility(shadowIndex, surface.position, surface.vertexNormal, screenUv);
 #endif // ENABLE_TRANSMISSION
 
     }
@@ -58,7 +58,7 @@ void ApplyDirectionalLights(Surface surface, inout LightingData lightingData, fl
     // Add the lighting contribution for each directional light
     for (int index = 0; index < SceneSrg::m_directionalLightCount; index++)
     {
-        SceneSrg::DirectionalLight light = SceneSrg::m_directionalLights[index];
+        DirectionalLight light = SceneSrg::m_directionalLights[index];
         if(!IsSameLightChannel(lightingData.lightingChannels, light.m_lightingChannelMask))
         {
             continue;
